@@ -372,9 +372,9 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
                     else:
                         val_min = min_real
                     val_psnr = psnr(np.multiply(x_true_img, xm[0]), np.multiply(x_pred_img, xm[0]),
-                                    dynamic_range=val_max - val_min)
+                                    data_range=val_max - val_min)
                     val_ssim = ssim(np.multiply(x_true_img, xm[0]), np.multiply(x_pred_img, xm[0]),
-                                    dynamic_range=val_max - val_min, multichannel=True)
+                                    data_range=val_max - val_min, multichannel=True)
 
         saver.save(sess=session, save_path=checkpoint_dir, global_step=step)
         print("Saved step: [%2d]" % step)
@@ -412,8 +412,8 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
 
     for i in range(0, iterations):
         # extract volumes
-        xt_total = traindataset.data_true(654 + i)
-        xt_mask = traindataset.mask(654 + i)
+        xt_total = traindataset.data_true(i)
+        xt_mask = traindataset.mask(i)
         normfactor = (np.amax(xt_total[0])) / 2
         x_generator = ((xt_total[0] - normfactor) / normfactor)
         res = 1 / upsampling_factor
@@ -440,12 +440,12 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
         else:
             val_min = min_real
         val_psnr = psnr(np.multiply(volume_real, volume_mask), np.multiply(volume_generated, volume_mask),
-                        dynamic_range=val_max - val_min)
+                        data_range=val_max - val_min)
         array_psnr[i] = val_psnr
 
         totalpsnr += val_psnr
         val_ssim = ssim(np.multiply(volume_real, volume_mask), np.multiply(volume_generated, volume_mask),
-                        dynamic_range=val_max - val_min, multichannel=True)
+                        data_range=val_max - val_min, multichannel=True)
         array_ssim[i] = val_ssim
         totalssim += val_ssim
         print(val_psnr)

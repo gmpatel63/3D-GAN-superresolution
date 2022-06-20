@@ -8,9 +8,9 @@ from skimage.util import view_as_windows
 class Train_dataset(object):
     def __init__(self, batch_size, overlapping=1):
         self.batch_size = batch_size
-        self.data_path = '/imatge/isanchez/projects/neuro/ADNI-Screening-1.5T'
+        self.data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input/ABIDE_I_DEMO'
         self.subject_list = os.listdir(self.data_path)
-        self.subject_list = np.delete(self.subject_list, 120)
+        # self.subject_list = np.delete(self.subject_list, 120)
         self.heigth_patch = 112  # 128
         self.width_patch = 112  # 128
         self.depth_patch = 76  # 92
