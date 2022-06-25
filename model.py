@@ -27,9 +27,9 @@ def discriminator(input_disc, kernel, reuse, is_train=True):
     batch_size = 1
     div_patches = 4
     num_patches = 8
-    img_width = 128
-    img_height = 128
-    img_depth = 92
+    img_width = 102
+    img_height = 126
+    img_depth = 94
     with tf.variable_scope("SRGAN_d", reuse=reuse):
         tl.layers.set_name_reuse(reuse)
         input_disc.set_shape([int((batch_size * num_patches) / div_patches), img_width, img_height, img_depth, 1], )
@@ -125,7 +125,7 @@ def generator(input_gen, kernel, nb, upscaling_factor, reuse, feature_size, img_
 
             x = DeConv3dLayer(x, shape=[kernel * 2, kernel * 2, kernel * 2, 64, feature_size],
                               act=lrelu1, strides=[1, 2, 2, 2, 1],
-                              output_shape=[tf.shape(input_gen)[0], img_height_deconv, img_width_deconv,
+                              output_shape=[tf.shape(input_gen)[0], img_width_deconv, img_height_deconv,
                                             img_depth_deconv, 64],
                               padding='SAME', W_init=w_init_subpixel1_last, name='conv1-ub-subpixelnn/1')
 
@@ -133,7 +133,7 @@ def generator(input_gen, kernel, nb, upscaling_factor, reuse, feature_size, img_
             if upscaling_factor == 4:
                 x = DeConv3dLayer(x, shape=[kernel * 2, kernel * 2, kernel * 2, 64, 64],
                                   act=lrelu1, strides=[1, 2, 2, 2, 1], padding='SAME',
-                                  output_shape=[tf.shape(input_gen)[0], img_height, img_width,
+                                  output_shape=[tf.shape(input_gen)[0], img_width, img_height,
                                                 img_depth, 64],
                                   W_init=w_init_subpixel2_last, name='conv1-ub-subpixelnn/2')
 
@@ -342,14 +342,14 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
                             x_true_img = ((x_true_img + 1) * normfactor)  # denormalize
                         img_true = nib.Nifti1Image(x_true_img, np.eye(4))
                         img_true.to_filename(
-                            os.path.join(path_prediction, str(j) + str(i) + 'true.nii.gz'))
+                            os.path.join(path_prediction, 'epoch' + str(j) + '_iter' + str(i) + 'true.nii.gz'))
 
                         x_gen_img = xgenin[0]
                         if normfactor != 0:
                             x_gen_img = ((x_gen_img + 1) * normfactor)  # denormalize
                         img_gen = nib.Nifti1Image(x_gen_img, np.eye(4))
                         img_gen.to_filename(
-                            os.path.join(path_prediction, str(j) + str(i) + 'gen.nii.gz'))
+                            os.path.join(path_prediction, 'epoch' + str(j) + '_iter' + str(i) + 'gen.nii.gz'))
 
                     x_pred = session.run(gen_test.outputs, {t_input_gen: xgenin})
                     x_pred_img = x_pred[0]
@@ -357,7 +357,7 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
                         x_pred_img = ((x_pred_img + 1) * normfactor)  # denormalize
                     img_pred = nib.Nifti1Image(x_pred_img, np.eye(4))
                     img_pred.to_filename(
-                        os.path.join(path_prediction, str(j) + str(i) + '.nii.gz'))
+                        os.path.join(path_prediction, 'epoch' + str(j) + '_iter' + str(i) + '.nii.gz'))
 
                     max_gen = np.amax(x_pred_img)
                     max_real = np.amax(x_true_img)
@@ -485,15 +485,16 @@ if __name__ == '__main__':
     parser.add_argument('-nn', default=False, help='Use Upsampling3D + nearest neighbour, RC')
     parser.add_argument('-feature_size', default=32, help='Number of filters')
     parser.add_argument('-restore', default=None, help='Checkpoint path to restore training')
+    parser.add_argument('-epochs', default=10, help='Number of epochs to train')
     args = parser.parse_args()
 
     if args.evaluate:
         evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
                  residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=args.checkpoint_dir_restore,
-                 path_volumes=args.path_volumes, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=224,
-                 img_height=224, img_depth=152)
+                 path_volumes=args.path_volumes, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
+                 img_height=220, img_depth=156)
     else:
         train(upscaling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
               subpixel_NN=args.subpixel_NN, nn=args.nn, residual_blocks=int(args.residual_blocks),
-              path_prediction=args.path_prediction, checkpoint_dir=args.checkpoint_dir, img_width=128,
-              img_height=128, img_depth=92, batch_size=1, restore=args.restore)
+              path_prediction=args.path_prediction, checkpoint_dir=args.checkpoint_dir, img_width=102,
+              img_height=126, img_depth=94, batch_size=1, restore=args.restore, epochs=args.epochs)

@@ -59,27 +59,27 @@ def subPixelConv3d(net, img_width, img_height, img_depth, stepsToEnd, n_out_chan
 
 def aggregate(patches):
     margin = 16
-    volume = np.empty([224, 224, 152, 1])
-    volume[0:112, 0:112, 0:76, :] = patches[0, 0:112, 0:112, 0:76, :]
-    volume[0:112, 0:112, 76:, :] = patches[1, 0:112, 0:112, margin:, :]
-    volume[0:112, 112:, 0:76, :] = patches[2, 0:112, margin:, 0:76, :]
-    volume[0:112, 112:, 76:, :] = patches[3, 0:112, margin:, margin:, :]
-    volume[112:, 0:112, 0:76, :] = patches[4, margin:, 0:112, 0:76, :]
-    volume[112:, 0:112, 76:, :] = patches[5, margin:, 0:112, margin:, :]
-    volume[112:, 112:, 0:76, :] = patches[6, margin:, margin:, 0:76, :]
-    volume[112:, 112:, 76:, :] = patches[7, margin:, margin:, margin:, :]
+    volume = np.empty([172, 220, 156, 1])
+    volume[0:86, 0:110, 0:78, :] = patches[0, 0:86, 0:110, 0:78, :]
+    volume[0:86, 0:110, 78:, :] = patches[1, 0:86, 0:110, margin:, :]
+    volume[0:86, 110:, 0:78, :] = patches[2, 0:86, margin:, 0:78, :]
+    volume[0:86, 110:, 78:, :] = patches[3, 0:86, margin:, margin:, :]
+    volume[86:, 0:110, 0:78, :] = patches[4, margin:, 0:110, 0:78, :]
+    volume[86:, 0:110, 78:, :] = patches[5, margin:, 0:110, margin:, :]
+    volume[86:, 110:, 0:78, :] = patches[6, margin:, margin:, 0:78, :]
+    volume[86:, 110:, 78:, :] = patches[7, margin:, margin:, margin:, :]
     return volume
 
 
-def aggregate2(patches):
-    margin = 8
-    volume = np.empty([112, 112, 76, 1])
-    volume[0:56, 0:56, 0:38, :] = patches[0, 0:56, 0:56, 0:38, :]
-    volume[0:56, 0:56, 38:, :] = patches[1, 0:56, 0:56, margin:, :]
-    volume[0:56, 56:, 0:38, :] = patches[2, 0:56, margin:, 0:38, :]
-    volume[0:56, 56:, 38:, :] = patches[3, 0:56, margin:, margin:, :]
-    volume[56:, 0:56, 0:38, :] = patches[4, margin:, 0:56, 0:38, :]
-    volume[56:, 0:56, 38:, :] = patches[5, margin:, 0:56, margin:, :]
-    volume[56:, 56:, 0:38, :] = patches[6, margin:, margin:, 0:38, :]
-    volume[56:, 56:, 38:, :] = patches[7, margin:, margin:, margin:, :]
-    return volume
+# def aggregate2(patches):
+#     margin = 8
+#     volume = np.empty([112, 112, 76, 1])
+#     volume[0:56, 0:56, 0:38, :] = patches[0, 0:56, 0:56, 0:38, :]
+#     volume[0:56, 0:56, 38:, :] = patches[1, 0:56, 0:56, margin:, :]
+#     volume[0:56, 56:, 0:38, :] = patches[2, 0:56, margin:, 0:38, :]
+#     volume[0:56, 56:, 38:, :] = patches[3, 0:56, margin:, margin:, :]
+#     volume[56:, 0:56, 0:38, :] = patches[4, margin:, 0:56, 0:38, :]
+#     volume[56:, 0:56, 38:, :] = patches[5, margin:, 0:56, margin:, :]
+#     volume[56:, 56:, 0:38, :] = patches[6, margin:, margin:, 0:38, :]
+#     volume[56:, 56:, 38:, :] = patches[7, margin:, margin:, margin:, :]
+#     return volume
