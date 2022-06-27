@@ -6,11 +6,10 @@ from skimage.util import view_as_windows
 
 
 class Train_dataset(object):
-    def __init__(self, batch_size, overlapping=1):
+    def __init__(self, batch_size, subject_list, overlapping=1):
         self.batch_size = batch_size
-        self.data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input/ABIDE_I_DEMO'
-        self.subject_list = os.listdir(self.data_path)
-        # self.subject_list = np.delete(self.subject_list, 120)
+        self.data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data'
+        self.subject_list = subject_list
         self.width_patch = 86  # 102
         self.heigth_patch = 110  # 126
         self.depth_patch = 78  # 94
@@ -75,7 +74,7 @@ class Train_dataset(object):
         return mask
 
     def patches_true(self, iteration):
-        subjects_true = self.data_true(iteration)
+        subjects_true, subject_batch = self.data_true(iteration)
         patches_true = np.empty(
             [self.batch_size * self.num_patches, self.width_patch + self.margin, self.heigth_patch + self.margin,
              self.depth_patch + self.margin, 1])
@@ -131,4 +130,4 @@ class Train_dataset(object):
 
                 subjects[i] = data_padded[16:188, 16:236, 16:172]  # remove background
                 i = i + 1
-        return subjects
+        return subjects, subject_batch
