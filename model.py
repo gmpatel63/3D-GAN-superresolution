@@ -383,7 +383,7 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
         step = step + 1
 
 
-def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_restore, path_volumes, nn, subpixel_NN,
+def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_restore, output_dir, nn, subpixel_NN,
              img_height, img_width, img_depth):
     traindataset = Train_dataset(1, subject_list)
     iterations = math.ceil(
@@ -453,10 +453,15 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
         print(val_psnr)
         print(val_ssim)
         # save volumes
-        filename_gen = os.path.join(path_volumes, subject_names[0] + '_gen.nii.gz')
+        db_str1, db_str2, *fname = subject_names[0].split('_')[]
+        db_name = db_str1 + '_' + db_str2
+        db_dir = Path(output_dir, experiment_name, db_name)
+        db_dir.mkdir(exist_ok=True, parents=True)
+        gen_mri_name = '_'.join(fname) + '.nii.gz'
+        filename_gen = os.path.join(db_dir, gen_mri_name)
         img_volume_gen = nib.Nifti1Image(volume_generated, np.eye(4))
         img_volume_gen.to_filename(filename_gen)
-        filename_real = os.path.join(path_volumes, str(i) + 'real.nii.gz')
+        filename_real = os.path.join(output_dir, str(i) + 'real.nii.gz')
         img_volume_real = nib.Nifti1Image(volume_real, np.eye(4))
         img_volume_real.to_filename(filename_real)
 
@@ -476,10 +481,10 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Predict script')
-    parser.add_argument('-path_prediction', help='Path to save training predictions')
-    parser.add_argument('-path_volumes', help='Path to save test volumes')
-    parser.add_argument('-checkpoint_dir', help='Path to save checkpoints')
-    parser.add_argument('-checkpoint_dir_restore', help='Path to restore checkpoints')
+    # parser.add_argument('-path_prediction', help='Path to save training predictions')
+    parser.add_argument('-output_dir', help='Path to save test volumes')
+    # parser.add_argument('-checkpoint_dir', help='Path to save checkpoints')
+    # parser.add_argument('-checkpoint_dir_restore', help='Path to restore checkpoints')
     parser.add_argument('-residual_blocks', default=6, help='Number of residual blocks')
     parser.add_argument('-upsampling_factor', default=4, help='Upsampling factor')
     parser.add_argument('-evaluate', default=False, help='Test the model')
@@ -495,21 +500,38 @@ if __name__ == '__main__':
     experiment_dir = Path(args.experiment_dir)
     experiment_name = experiment_dir.name
     dataset_path = Path(experiment_dir, 'dataset_csvs')
+    # create experiment dir in srgan output, which will have checkpoint, path_prediction and output_dir
+    output_dir = Path(args.output_dir, experiment_name)
+    output_dir.mkdir(exist_ok=True, parents=True)
+    
+    path_prediction = Path(output_dir, 'training_predictions')
+    checkpoint_dir = Path(output_dir, 'ckpt_dir')
+    evaluate_dir = Path(output_dir, 'evaluate')
+    path_prediction.mkdir(exist_ok=True)
+    checkpoint_dir.mkdir(exist_ok=True)
+    evaluate_dir.mkdir(exist_ok=True)
+    
 
     if args.evaluate:
+        
         testing_csv = Path(dataset_path, 'testing_data.csv')
         testing_df = pd.read_csv(testing_csv)
         subject_list = testing_df['srgan_subject_names']
+        
         evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
-                 residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=args.checkpoint_dir_restore,
-                 path_volumes=args.path_volumes, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
+                 residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
+                 output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
                  img_height=220, img_depth=156)
     else:
+        
+        checkpoint_dir = Path(checkpoint_dir, experiment_name)
+        
         training_csv = Path(dataset_path, 'training_data.csv')
         validation_csv = Path(dataset_path, 'validation_data.csv')
         training_df = pd.read_csv(training_csv).drop_duplicates()
         validation_df = pd.read_csv(validation_csv).drop_duplicates()
         subject_list = training_df['srgan_subject_names'] + validation_df['srgan_subject_names']
+        
         train(upscaling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
               subpixel_NN=args.subpixel_NN, nn=args.nn, residual_blocks=int(args.residual_blocks),
               path_prediction=args.path_prediction, checkpoint_dir=args.checkpoint_dir, img_width=102,
