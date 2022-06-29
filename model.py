@@ -206,7 +206,7 @@ def generator(input_gen, kernel, nb, upscaling_factor, reuse, feature_size, img_
 def train(upscaling_factor, residual_blocks, feature_size, path_prediction, checkpoint_dir, img_width, img_height,
           img_depth, subpixel_NN, nn, restore, subject_list, batch_size=1, div_patches=4, epochs=10):
     traindataset = Train_dataset(batch_size, subject_list)
-    iterations_train = math.ceil((len(traindataset.subject_list) * 0.8) / batch_size)
+    iterations_train = len(traindataset.subject_list)
     num_patches = traindataset.num_patches
 
     # ##========================== DEFINE MODEL ============================##
@@ -386,8 +386,7 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
 def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_restore, output_dir, nn, subpixel_NN,
              img_height, img_width, img_depth):
     traindataset = Train_dataset(1, subject_list)
-    iterations = math.ceil(
-        (len(traindataset.subject_list) * 0.2))
+    iterations = len(traindataset.subject_list)
     print(len(traindataset.subject_list))
     print(iterations)
     totalpsnr = 0
@@ -453,17 +452,17 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
         print(val_psnr)
         print(val_ssim)
         # save volumes
-        db_str1, db_str2, *fname = subject_names[0].split('_')[]
+        db_str1, db_str2, *fname = subject_names[0].split('_')
         db_name = db_str1 + '_' + db_str2
-        db_dir = Path(output_dir, experiment_name, db_name)
+        db_dir = Path(output_dir, db_name)
         db_dir.mkdir(exist_ok=True, parents=True)
         gen_mri_name = '_'.join(fname) + '.nii.gz'
         filename_gen = os.path.join(db_dir, gen_mri_name)
         img_volume_gen = nib.Nifti1Image(volume_generated, np.eye(4))
         img_volume_gen.to_filename(filename_gen)
-        filename_real = os.path.join(output_dir, str(i) + 'real.nii.gz')
-        img_volume_real = nib.Nifti1Image(volume_real, np.eye(4))
-        img_volume_real.to_filename(filename_real)
+        # filename_real = os.path.join(output_dir, str(i) + 'real.nii.gz')
+        # img_volume_real = nib.Nifti1Image(volume_real, np.eye(4))
+        # img_volume_real.to_filename(filename_real)
 
     print('{}{}'.format('PSNR: ', array_psnr))
     print('{}{}'.format('SSIM: ', array_ssim))
@@ -511,12 +510,18 @@ if __name__ == '__main__':
     checkpoint_dir.mkdir(exist_ok=True)
     evaluate_dir.mkdir(exist_ok=True)
     
+    training_csv = Path(dataset_path, 'training_data.csv')
+    validation_csv = Path(dataset_path, 'validation_data.csv')
+    training_df = pd.read_csv(training_csv).drop_duplicates()
+    validation_df = pd.read_csv(validation_csv).drop_duplicates()
+    subject_list = training_df['srgan_subject_names'].tolist()
+    subject_list.extend(validation_df['srgan_subject_names'].tolist())
 
     if args.evaluate:
         
         testing_csv = Path(dataset_path, 'testing_data.csv')
         testing_df = pd.read_csv(testing_csv)
-        subject_list = testing_df['srgan_subject_names']
+        subject_list.extend(testing_df['srgan_subject_names'].tolist())
         
         evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
                  residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
@@ -526,13 +531,7 @@ if __name__ == '__main__':
         
         checkpoint_dir = Path(checkpoint_dir, experiment_name)
         
-        training_csv = Path(dataset_path, 'training_data.csv')
-        validation_csv = Path(dataset_path, 'validation_data.csv')
-        training_df = pd.read_csv(training_csv).drop_duplicates()
-        validation_df = pd.read_csv(validation_csv).drop_duplicates()
-        subject_list = training_df['srgan_subject_names'] + validation_df['srgan_subject_names']
-        
         train(upscaling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
               subpixel_NN=args.subpixel_NN, nn=args.nn, residual_blocks=int(args.residual_blocks),
-              path_prediction=args.path_prediction, checkpoint_dir=args.checkpoint_dir, img_width=102,
+              path_prediction=path_prediction, checkpoint_dir=checkpoint_dir, img_width=102,
               img_height=126, img_depth=94, batch_size=1, restore=args.restore, epochs=args.epochs, subject_list=subject_list)
