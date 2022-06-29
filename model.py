@@ -519,7 +519,7 @@ if __name__ == '__main__':
 
     if args.evaluate:
         
-        testing_csv = Path(dataset_path, 'testing_data.csv')
+        testing_csv = Path(dataset_path, 'test_data.csv')
         testing_df = pd.read_csv(testing_csv)
         subject_list.extend(testing_df['srgan_subject_names'].tolist())
         
