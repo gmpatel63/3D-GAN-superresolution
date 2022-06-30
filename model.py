@@ -511,13 +511,15 @@ if __name__ == '__main__':
     evaluate_dir.mkdir(exist_ok=True)
     
     training_csv = Path(dataset_path, 'training_data.csv')
-    validation_csv = Path(dataset_path, 'validation_data.csv')
     training_df = pd.read_csv(training_csv).drop_duplicates()
-    validation_df = pd.read_csv(validation_csv).drop_duplicates()
+    
     subject_list = training_df['srgan_subject_names'].tolist()
-    subject_list.extend(validation_df['srgan_subject_names'].tolist())
 
     if args.evaluate:
+        
+        validation_csv = Path(dataset_path, 'validation_data.csv') 
+        validation_df = pd.read_csv(validation_csv).drop_duplicates()
+        subject_list.extend(validation_df['srgan_subject_names'].tolist())
         
         testing_csv = Path(dataset_path, 'test_data.csv')
         testing_df = pd.read_csv(testing_csv)
@@ -530,6 +532,10 @@ if __name__ == '__main__':
     else:
         
         checkpoint_dir = Path(checkpoint_dir, experiment_name)
+        
+        trainnig_df = training_df.sample(frac=1).reset_index(drop=True)
+        training_df = training_df.head(275)
+        subject_list = training_df['srgan_subject_names'].tolist()
         
         train(upscaling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
               subpixel_NN=args.subpixel_NN, nn=args.nn, residual_blocks=int(args.residual_blocks),
