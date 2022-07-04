@@ -6,9 +6,9 @@ from skimage.util import view_as_windows
 
 
 class Train_dataset(object):
-    def __init__(self, batch_size, subject_list, overlapping=1):
+    def __init__(self, batch_size, subject_list, data_path, overlapping=1):
         self.batch_size = batch_size
-        self.data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data'
+        self.data_path = data_path
         self.subject_list = subject_list
         self.width_patch = 86  # 102
         self.heigth_patch = 110  # 126

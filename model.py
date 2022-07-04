@@ -14,6 +14,7 @@ from keras.layers.convolutional import UpSampling3D
 import argparse
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 
 def lrelu1(x):
@@ -204,8 +205,8 @@ def generator(input_gen, kernel, nb, upscaling_factor, reuse, feature_size, img_
 
 
 def train(upscaling_factor, residual_blocks, feature_size, path_prediction, checkpoint_dir, img_width, img_height,
-          img_depth, subpixel_NN, nn, restore, subject_list, batch_size=1, div_patches=4, epochs=10):
-    traindataset = Train_dataset(batch_size, subject_list)
+          img_depth, subpixel_NN, nn, restore, subject_list, data_path, batch_size=1, div_patches=4, epochs=10):
+    traindataset = Train_dataset(batch_size, subject_list, data_path)
     iterations_train = len(traindataset.subject_list)
     num_patches = traindataset.num_patches
 
@@ -384,8 +385,8 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
 
 
 def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_restore, output_dir, nn, subpixel_NN,
-             img_height, img_width, img_depth):
-    traindataset = Train_dataset(1, subject_list)
+             img_height, img_width, img_depth, data_path=None):
+    traindataset = Train_dataset(1, subject_list, data_path)
     iterations = len(traindataset.subject_list)
     print(len(traindataset.subject_list))
     print(iterations)
@@ -458,6 +459,7 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
         db_dir.mkdir(exist_ok=True, parents=True)
         gen_mri_name = '_'.join(fname) + '.nii.gz'
         filename_gen = os.path.join(db_dir, gen_mri_name)
+        volume_generated = np.squeeze(volume_generated)
         img_volume_gen = nib.Nifti1Image(volume_generated, np.eye(4))
         img_volume_gen.to_filename(filename_gen)
         # filename_real = os.path.join(output_dir, str(i) + 'real.nii.gz')
@@ -479,11 +481,13 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
 
 
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser(description='Predict script')
     # parser.add_argument('-path_prediction', help='Path to save training predictions')
-    parser.add_argument('-output_dir', help='Path to save test volumes')
     # parser.add_argument('-checkpoint_dir', help='Path to save checkpoints')
     # parser.add_argument('-checkpoint_dir_restore', help='Path to restore checkpoints')
+    
+    parser.add_argument('-output_dir', help='Path to save test volumes')
     parser.add_argument('-residual_blocks', default=6, help='Number of residual blocks')
     parser.add_argument('-upsampling_factor', default=4, help='Upsampling factor')
     parser.add_argument('-evaluate', default=False, help='Test the model')
@@ -491,53 +495,86 @@ if __name__ == '__main__':
     parser.add_argument('-nn', default=False, help='Use Upsampling3D + nearest neighbour, RC')
     parser.add_argument('-feature_size', default=32, help='Number of filters')
     parser.add_argument('-restore', default=None, help='Checkpoint path to restore training')
-    parser.add_argument('-epochs', default=10, help='Number of epochs to train')
+    parser.add_argument('-epochs', default=10, help='Number of epochs to train', type=int)
     parser.add_argument('-experiment_dir', default='experiments/base_model', 
                         help='Experiment directory containing params.json')
+    parser.add_argument('-adv_input', type=bool)
     args = parser.parse_args()
     
+    data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data'
     experiment_dir = Path(args.experiment_dir)
     experiment_name = experiment_dir.name
-    dataset_path = Path(experiment_dir, 'dataset_csvs')
     # create experiment dir in srgan output, which will have checkpoint, path_prediction and output_dir
     output_dir = Path(args.output_dir, experiment_name)
     output_dir.mkdir(exist_ok=True, parents=True)
     
-    path_prediction = Path(output_dir, 'training_predictions')
     checkpoint_dir = Path(output_dir, 'ckpt_dir')
-    evaluate_dir = Path(output_dir, 'evaluate')
-    path_prediction.mkdir(exist_ok=True)
     checkpoint_dir.mkdir(exist_ok=True)
-    evaluate_dir.mkdir(exist_ok=True)
-    
+    dataset_path = Path(experiment_dir, 'dataset_csvs')
+
     training_csv = Path(dataset_path, 'training_data.csv')
     training_df = pd.read_csv(training_csv).drop_duplicates()
     
-    subject_list = training_df['srgan_subject_names'].tolist()
-
+    evaluate_dir = Path(output_dir, 'evaluate')
+    
     if args.evaluate:
-        
-        validation_csv = Path(dataset_path, 'validation_data.csv') 
-        validation_df = pd.read_csv(validation_csv).drop_duplicates()
-        subject_list.extend(validation_df['srgan_subject_names'].tolist())
-        
-        testing_csv = Path(dataset_path, 'test_data.csv')
-        testing_df = pd.read_csv(testing_csv)
-        subject_list.extend(testing_df['srgan_subject_names'].tolist())
-        
-        evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
-                 residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
-                 output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
-                 img_height=220, img_depth=156)
+        if args.adv_input:
+            testing_csv = Path(dataset_path, 'test_data.csv')
+            testing_df = pd.read_csv(testing_csv)
+            subject_list = testing_df['srgan_subject_names'].tolist()
+            
+            model_dirs = Path(data_path, 'adversarial_input', experiment_name)
+            
+            
+            for model_dir in model_dirs.iterdir():
+                if not dir.is_dir():
+                    continue 
+                
+                for attack_op_dir in model_dir.iterdir():
+                    if not dir.is_dir():
+                        continue
+                    
+                    evaluate_dir = Path(evaluate_dir, 'adversarial_input', attack_op_dir.name)
+                    print(f'evaluating inputs from {evaluate_dir}')
+                    
+                    evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
+                        residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
+                        output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
+                        img_height=220, img_depth=156, data_path=data_path)
+        else:
+            # evaluate legitimate input
+            subject_list = training_df['srgan_subject_names'].tolist()
+            
+            validation_csv = Path(dataset_path, 'validation_data.csv') 
+            validation_df = pd.read_csv(validation_csv).drop_duplicates()
+            subject_list.extend(validation_df['srgan_subject_names'].tolist())
+            
+            testing_csv = Path(dataset_path, 'test_data.csv')
+            testing_df = pd.read_csv(testing_csv)
+            subject_list.extend(testing_df['srgan_subject_names'].tolist())
+            
+            evaluate_dir = Path(evaluate_dir, 'legitimate_input')
+
+            evaluate_dir.mkdir(exist_ok=True)
+            data_path = data_path + 'legitimate_input' 
+            
+            evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
+                    residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
+                    output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
+                    img_height=220, img_depth=156, data_path=data_path)
     else:
         
+        path_prediction = Path(output_dir, 'training_predictions')
+        path_prediction.mkdir(exist_ok=True)
         checkpoint_dir = Path(checkpoint_dir, experiment_name)
         
         trainnig_df = training_df.sample(frac=1).reset_index(drop=True)
         training_df = training_df.head(275)
         subject_list = training_df['srgan_subject_names'].tolist()
+        data_path = data_path + 'legitimate_input'
         
         train(upscaling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
               subpixel_NN=args.subpixel_NN, nn=args.nn, residual_blocks=int(args.residual_blocks),
               path_prediction=path_prediction, checkpoint_dir=checkpoint_dir, img_width=102,
-              img_height=126, img_depth=94, batch_size=1, restore=args.restore, epochs=args.epochs, subject_list=subject_list)
+              img_height=126, img_depth=94, batch_size=1, restore=args.restore, epochs=args.epochs, 
+              subject_list=subject_list, data_path=data_path)
