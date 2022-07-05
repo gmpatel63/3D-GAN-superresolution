@@ -499,6 +499,7 @@ if __name__ == '__main__':
     parser.add_argument('-experiment_dir', default='experiments/base_model', 
                         help='Experiment directory containing params.json')
     parser.add_argument('-adv_input', type=bool)
+    parser.add_argument('-training_datset_size', default=275, type=int)
     args = parser.parse_args()
     
     data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data/'
@@ -535,13 +536,13 @@ if __name__ == '__main__':
                     if not attack_op_dir.is_dir():
                         continue
                     
-                    evaluate_dir = Path(evaluate_dir, 'adversarial_input', attack_op_dir.name)
+                    current_evaluate_dir = Path(evaluate_dir, 'adversarial_input', attack_op_dir.name)
                     print(f'evaluating inputs from {evaluate_dir}')
                     
                     evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
                         residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
-                        output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
-                        img_height=220, img_depth=156, data_path=attack_op_dir, reuse = True)
+                        output_dir=current_evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
+                        img_height=220, img_depth=156, data_path=attack_op_dir, reuse=reuse)
                     reuse = True
         else:
             # evaluate legitimate input
@@ -571,7 +572,7 @@ if __name__ == '__main__':
         checkpoint_dir = Path(checkpoint_dir, experiment_name)
         
         trainnig_df = training_df.sample(frac=1).reset_index(drop=True)
-        training_df = training_df.head(275)
+        training_df = training_df.head(args.training_datset_size)
         subject_list = training_df['srgan_subject_names'].tolist()
         data_path = data_path + 'legitimate_input'
         
