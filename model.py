@@ -385,7 +385,7 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
 
 
 def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_restore, output_dir, nn, subpixel_NN,
-             img_height, img_width, img_depth, data_path=None):
+             img_height, img_width, img_depth, data_path=None, reuse=False):
     traindataset = Train_dataset(1, subject_list, data_path)
     iterations = len(traindataset.subject_list)
     print(len(traindataset.subject_list))
@@ -404,7 +404,7 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
     srgan_network = generator(input_gen=t_input_gen, kernel=3, nb=residual_blocks,
                               upscaling_factor=upsampling_factor, feature_size=feature_size, subpixel_NN=subpixel_NN,
                               img_height=img_height, img_width=img_width, img_depth=img_depth, nn=nn,
-                              is_train=False, reuse=False)
+                              is_train=False, reuse=reuse)
 
     # restore g
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
@@ -501,7 +501,7 @@ if __name__ == '__main__':
     parser.add_argument('-adv_input', type=bool)
     args = parser.parse_args()
     
-    data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data'
+    data_path = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data/'
     experiment_dir = Path(args.experiment_dir)
     experiment_name = experiment_dir.name
     # create experiment dir in srgan output, which will have checkpoint, path_prediction and output_dir
@@ -525,13 +525,14 @@ if __name__ == '__main__':
             
             model_dirs = Path(data_path, 'adversarial_input', experiment_name)
             
-            
+            # We wants reuse = False only in first iteration
+            reuse = False
             for model_dir in model_dirs.iterdir():
-                if not dir.is_dir():
+                if not model_dir.is_dir():
                     continue 
                 
                 for attack_op_dir in model_dir.iterdir():
-                    if not dir.is_dir():
+                    if not attack_op_dir.is_dir():
                         continue
                     
                     evaluate_dir = Path(evaluate_dir, 'adversarial_input', attack_op_dir.name)
@@ -540,7 +541,8 @@ if __name__ == '__main__':
                     evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
                         residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
                         output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
-                        img_height=220, img_depth=156, data_path=data_path)
+                        img_height=220, img_depth=156, data_path=attack_op_dir, reuse = True)
+                    reuse = True
         else:
             # evaluate legitimate input
             subject_list = training_df['srgan_subject_names'].tolist()
@@ -555,13 +557,13 @@ if __name__ == '__main__':
             
             evaluate_dir = Path(evaluate_dir, 'legitimate_input')
 
-            evaluate_dir.mkdir(exist_ok=True)
+            evaluate_dir.mkdir(exist_ok=True, parents=True)
             data_path = data_path + 'legitimate_input' 
             
             evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
                     residual_blocks=int(args.residual_blocks), checkpoint_dir_restore=checkpoint_dir,
                     output_dir=evaluate_dir, subpixel_NN=args.subpixel_NN, nn=args.nn, img_width=172,
-                    img_height=220, img_depth=156, data_path=data_path)
+                    img_height=220, img_depth=156, data_path=data_path, reuse=False)
     else:
         
         path_prediction = Path(output_dir, 'training_predictions')
