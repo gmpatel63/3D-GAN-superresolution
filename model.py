@@ -499,6 +499,7 @@ if __name__ == '__main__':
     parser.add_argument('-experiment_dir', default='experiments/base_model', 
                         help='Experiment directory containing params.json')
     parser.add_argument('-adv_input', type=bool)
+    parser.add_argument('-model', type=str)
     parser.add_argument('-training_datset_size', default=275, type=int)
     args = parser.parse_args()
     
@@ -536,7 +537,7 @@ if __name__ == '__main__':
                     if not attack_op_dir.is_dir():
                         continue
                     
-                    current_evaluate_dir = Path(evaluate_dir, 'adversarial_input', attack_op_dir.name)
+                    current_evaluate_dir = Path(evaluate_dir, 'adversarial_input', args.model, attack_op_dir.name)
                     print(f'evaluating inputs from {evaluate_dir}')
                     
                     evaluate(upsampling_factor=int(args.upsampling_factor), feature_size=int(args.feature_size),
