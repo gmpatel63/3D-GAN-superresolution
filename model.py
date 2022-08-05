@@ -223,10 +223,10 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
                                   name='original_patches')
 
     t_2d_resize = tf.image.resize(
-        t_orig_input, size=(img_width/2, img_height/2))
+        t_orig_input, size=(img_width//2, img_height//2))
 
     t_depth_resize = tf.strided_slice(t_2d_resize, [0, 0, 0, 0], [
-                                      batch_dimension, img_width/2, img_height/2, img_depth], [1,1,1,2])
+                                      batch_dimension, img_width//2, img_height//2, img_depth], [1,1,1,2])
     
     t_input_gen = tf.expand_dims(t_depth_resize, 4)
     
@@ -345,8 +345,8 @@ def train(upscaling_factor, residual_blocks, feature_size, path_prediction, chec
                     if normfactor != 0:
                         xt[t] = ((xt[t] - normfactor) / normfactor)
 
-                xt = np.squeeze(xt)
-                x_generator = gaussian_filter(xt, sigma=1)
+                xt_orig = np.squeeze(xt)
+                x_generator = gaussian_filter(xt_orig, sigma=1)
                 # x_generator = zoom(x_generator, [1, (1 / upscaling_factor), (1 / upscaling_factor),
                 #                                  (1 / upscaling_factor), 1], prefilter=False, order=0)
 
@@ -433,12 +433,26 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
     num_patches = traindataset.num_patches
 
     # define model
-    t_input_gen = tf.placeholder('float32', [1, None, None, None, 1],
-                                 name='t_image_input_to_SRGAN_generator')
+    t_orig_input = tf.placeholder('float32', [1, None, None, None],
+                                  name='original_patches')
+
+    t_2d_resize = tf.image.resize(
+        t_orig_input, size=(img_width//2, img_height//2))
+
+    t_depth_resize = tf.strided_slice(t_2d_resize, [0, 0, 0, 0], [
+                                      1, img_width//2, img_height//2, img_depth], [1,1,1,2])
+    
+    t_input_gen = tf.expand_dims(t_depth_resize, 4)
+    
+
+    # t_input_gen = tf.placeholder('float32', [1, None, None, None, 1],
+    #                              name='t_image_input_to_SRGAN_generator')
     srgan_network = generator(input_gen=t_input_gen, kernel=3, nb=residual_blocks,
                               upscaling_factor=upsampling_factor, feature_size=feature_size, subpixel_NN=subpixel_NN,
                               img_height=img_height, img_width=img_width, img_depth=img_depth, nn=nn,
                               is_train=False, reuse=reuse)
+
+    grad_op = tf.gradients(srgan_network.outputs, t_orig_input)
 
     # restore g
     sess = tf.Session(config=tf.ConfigProto(
@@ -455,11 +469,16 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
         normfactor = (np.amax(xt_total[0])) / 2
         x_generator = ((xt_total[0] - normfactor) / normfactor)
         res = 1 / upsampling_factor
-        x_generator = x_generator[:, :, :, np.newaxis]
-        # x_generator = gaussian_filter(x_generator, sigma=1)
-        x_generator = zoom(x_generator, [res, res, res, 1], prefilter=False)
+        # x_generator = x_generator[:, :, :, np.newaxis]
+        x_generator = gaussian_filter(x_generator, sigma=1)
+        # x_generator = zoom(x_generator, [res, res, res, 1], prefilter=False)
         xg_generated = sess.run(srgan_network.outputs, {
-                                t_input_gen: x_generator[np.newaxis, :]})
+                                t_orig_input: x_generator[np.newaxis, :]})
+
+        mri_gradient = sess.run(grad_op, {
+                                t_orig_input: x_generator[np.newaxis, :]})
+
+        # print('gradient_shape' + tf.shape(mri_gradient[0]))
         xg_generated = ((xg_generated + 1) * normfactor)
         volume_real = xt_total[0]
         volume_real = volume_real[:, :, :, np.newaxis]
@@ -494,11 +513,21 @@ def evaluate(upsampling_factor, residual_blocks, feature_size, checkpoint_dir_re
         db_name = db_str1 + '_' + db_str2
         db_dir = Path(output_dir, db_name)
         db_dir.mkdir(exist_ok=True, parents=True)
-        gen_mri_name = '_'.join(fname) + '.nii.gz'
+
+        mri_fname = '_'.join(fname)
+        gen_mri_name = mri_fname + '.nii.gz'
+        grad_fname = mri_fname + '_grad.nii.gz'
         filename_gen = os.path.join(db_dir, gen_mri_name)
+        filename_grad = os.path.join(db_dir, grad_fname)
+
         volume_generated = np.squeeze(volume_generated)
+        mri_gradient = np.squeeze(mri_gradient)
+
         img_volume_gen = nib.Nifti1Image(volume_generated, np.eye(4))
         img_volume_gen.to_filename(filename_gen)
+
+        grad_gen = nib.Nifti1Image(mri_gradient, np.eye(4))
+        grad_gen.to_filename(filename_grad)
         # filename_real = os.path.join(output_dir, str(i) + 'real.nii.gz')
         # img_volume_real = nib.Nifti1Image(volume_real, np.eye(4))
         # img_volume_real.to_filename(filename_real)
