@@ -1,6 +1,6 @@
 # 3D-GAN-combined with CNN
 
-We combine SRGAN used in this repository with CNN and test its robustness. This is a fork of original SRGAN network based on [this paper] (https://arxiv.org/abs/1812.11440). We modified it to work with MRI resolution of (172, 220, 156) and to work make prediction on our dataset and adversarial examples. Below description is same as original repo. 
+We combine SRGAN used in this repository with CNN and test its robustness. This is a fork of original SRGAN network based on [this paper](https://arxiv.org/abs/1812.11440). We modified it to work with MRI resolution of (172, 220, 156) and to work make prediction on our dataset and adversarial examples. Below description is same as original repo. 
 
 
 Discriminator network
