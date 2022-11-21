@@ -1,3 +1,8 @@
+# 3D-GAN-combined with CNN
+
+We combine SRGAN used in this repository with CNN and test its robustness. SRGAN network is based on [this paper] (https://arxiv.org/abs/1812.11440). We modified it to work with MRI resolution of (172, 220, 156).
+
+
 # 3D-GAN-superresolution
 Here we present the implementation in TensorFlow of our work to generate high resolution MRI scans from low resolution images using Generative Adversarial Networks (GANs), accepted in the [Medical Imaging with Deep Learning Conference – Amsterdam. 4 - 6th July 2018.](https://midl.amsterdam/)
 
