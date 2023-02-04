@@ -1,5 +1,7 @@
-# 3D-GAN-superresolution
-Here we present the implementation in TensorFlow of our work to generate high resolution MRI scans from low resolution images using Generative Adversarial Networks (GANs), accepted in the [Medical Imaging with Deep Learning Conference – Amsterdam. 4 - 6th July 2018.](https://midl.amsterdam/)
+# 3D-GAN-combined with CNN
+
+We combine SRGAN used in this repository with CNN and test its robustness. This is a fork of original SRGAN network based on [this paper](https://arxiv.org/abs/1812.11440). We modified it to work with MRI resolution of (172, 220, 156) and to work make prediction on our dataset and adversarial examples. Below description is same as original repo. 
+
 
 Discriminator network
 ![alt text](https://github.com/imatge-upc/3D-GAN-superresolution/blob/master/images/3D%20SRGAN(D).png)
