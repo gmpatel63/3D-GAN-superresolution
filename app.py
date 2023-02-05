@@ -3,7 +3,52 @@ import numpy as np
 import base64
 import json
 
+import tensorflow as tf
+import tensorlayer as tl
+from tensorlayer.layers import *
+from scipy.ndimage.filters import gaussian_filter
+from utils import aggregate
+
+from model import generator
+
 app = Flask(__name__)
+
+upsampling_factor = 2,
+feature_size = 64,
+residual_blocks = 8,
+subpixel_NN = True,
+nn = False,
+img_width = 172,
+img_height = 220,
+img_depth = 156,
+reuse = False
+checkpoint_dir_restore = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data/oversample_8_30_e65/ckpt_dir'
+
+# define model
+t_orig_input = tf.placeholder('float32', [1, None, None, None],
+                              name='original_patches')
+
+t_2d_resize = tf.image.resize(
+    t_orig_input, size=(img_width//2, img_height//2))
+
+t_depth_resize = tf.strided_slice(t_2d_resize, [0, 0, 0, 0], [
+    1, img_width//2, img_height//2, img_depth], [1, 1, 1, 2])
+
+t_input_gen = tf.expand_dims(t_depth_resize, 4)
+
+
+srgan_network = generator(input_gen=t_input_gen, kernel=3, nb=residual_blocks,
+                          upscaling_factor=upsampling_factor, feature_size=feature_size, subpixel_NN=subpixel_NN,
+                          img_height=img_height, img_width=img_width, img_depth=img_depth, nn=nn,
+                          is_train=False, reuse=reuse)
+
+# restore g
+sess = tf.Session(config=tf.ConfigProto(
+    allow_soft_placement=True, log_device_placement=False))
+
+saver = tf.train.Saver(tf.get_collection(
+    tf.GraphKeys.GLOBAL_VARIABLES, scope="SRGAN_g"))
+saver.restore(sess, tf.train.latest_checkpoint(checkpoint_dir_restore))
 
 
 @app.route('/', methods=["POST"])
@@ -12,13 +57,31 @@ def index():
     data = request.json
     base64_mri = data.get("base64_mri", "")
     print(f"length of mri string: {len(base64_mri)}")
-    mri = np.frombuffer(base64.b64decode(base64_mri),dtype=float).reshape((172,220,156,1))
+    mri = np.frombuffer(base64.b64decode(base64_mri),
+                        dtype=float).reshape((172, 220, 156, 1))
     print(f"shape: {mri.shape}")
+    
+    # start - srgan evaluate
+    xt_total = mri
+    normfactor = (np.amax(xt_total[0])) / 2
+    x_generator = ((xt_total[0] - normfactor) / normfactor)
+    x_generator = gaussian_filter(x_generator, sigma=1)
+    xg_generated = sess.run(srgan_network.outputs, {
+                            t_orig_input: x_generator[np.newaxis, :]})
+
+    xg_generated = ((xg_generated + 1) * normfactor)
+    volume_real = xt_total[0]
+    volume_real = volume_real[:, :, :, np.newaxis]
+    volume_generated = xg_generated[0]
+
+    volume_generated = np.squeeze(volume_generated)
+    # end - srgan evaluate
 
     # convert mri back to string
     array_str = base64.b64encode(mri.tobytes()).decode('utf-8')
     print(f"len of array while sending it back: {len(array_str)}")
-    data = { "base64_mri": base64.b64encode(mri.tobytes()).decode('utf-8') }
+    data = {"base64_mri": base64.b64encode(mri.tobytes()).decode('utf-8')}
     return data
+
 
 app.run(host="0.0.0.0", port=5050)
