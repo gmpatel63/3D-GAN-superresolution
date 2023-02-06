@@ -3,6 +3,7 @@ import numpy as np
 import base64
 import json
 
+import nibabel as nib
 import tensorflow as tf
 import tensorlayer as tl
 from tensorlayer.layers import *
@@ -13,16 +14,16 @@ from model import generator
 
 app = Flask(__name__)
 
-upsampling_factor = 2,
-feature_size = 64,
-residual_blocks = 8,
-subpixel_NN = True,
-nn = False,
-img_width = 172,
-img_height = 220,
-img_depth = 156,
+upsampling_factor = 2
+feature_size = 64
+residual_blocks = 8
+subpixel_NN = True
+nn = False
+img_width = 172
+img_height = 220
+img_depth = 156
 reuse = False
-checkpoint_dir_restore = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_input_data/oversample_8_30_e65/ckpt_dir'
+checkpoint_dir_restore = '/fs/scratch/PFS0238/gaurangpatel/adversarialML/srgan_output_data/oversample_8_30_e65/ckpt_dir'
 
 # define model
 t_orig_input = tf.placeholder('float32', [1, None, None, None],
@@ -53,16 +54,19 @@ saver.restore(sess, tf.train.latest_checkpoint(checkpoint_dir_restore))
 
 @app.route('/', methods=["POST"])
 def index():
-    print("received request for mri processing")
+    # print("received request for mri processing")
     data = request.json
     base64_mri = data.get("base64_mri", "")
-    print(f"length of mri string: {len(base64_mri)}")
+    # print(f"length of mri string: {len(base64_mri)}")
     mri = np.frombuffer(base64.b64decode(base64_mri),
-                        dtype=float).reshape((172, 220, 156, 1))
-    print(f"shape: {mri.shape}")
+                        dtype=float)
+    # print(f'shape of flattened mri: {mri.shape}, mri type: {mri.dtype}')
+    mri = mri.reshape((172, 220, 156, 1))
+    mri = np.squeeze(mri)
+    # print(f"shape: {mri.shape}")
     
     # start - srgan evaluate
-    xt_total = mri
+    xt_total = np.expand_dims(mri, axis=0)
     normfactor = (np.amax(xt_total[0])) / 2
     x_generator = ((xt_total[0] - normfactor) / normfactor)
     x_generator = gaussian_filter(x_generator, sigma=1)
@@ -70,17 +74,18 @@ def index():
                             t_orig_input: x_generator[np.newaxis, :]})
 
     xg_generated = ((xg_generated + 1) * normfactor)
-    volume_real = xt_total[0]
-    volume_real = volume_real[:, :, :, np.newaxis]
     volume_generated = xg_generated[0]
 
     volume_generated = np.squeeze(volume_generated)
+    img_volume_gen = nib.Nifti1Image(volume_generated, np.eye(4))
+    volume_generated = np.array(img_volume_gen.dataobj)
     # end - srgan evaluate
 
     # convert mri back to string
-    array_str = base64.b64encode(mri.tobytes()).decode('utf-8')
-    print(f"len of array while sending it back: {len(array_str)}")
-    data = {"base64_mri": base64.b64encode(mri.tobytes()).decode('utf-8')}
+    # print(f'shape of volume generated: {volume_generated.shape}, type of volume genrated: {volume_generated.dtype}')
+    array_str = base64.b64encode(volume_generated.tobytes()).decode('utf-8')
+    # print(f"len of array while sending it back: {len(array_str)}")
+    data = {"base64_mri": array_str}
     return data
 
 
